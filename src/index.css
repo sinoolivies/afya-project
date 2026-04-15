@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Define your design system */
+@theme {
+  --color-primary: #2e7d32;   /* main green */
+  --color-primary-light: #4caf50;
+  --color-primary-dark: #1b5e20;
+
+  --color-secondary: #f5f5f5;
+  --color-accent: #16a34a;
+
+  --color-text-main: #1f2937;
+}
