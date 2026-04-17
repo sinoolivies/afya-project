@@ -154,7 +154,7 @@ const getDistanceKm = (startLat, startLng, endLat, endLng) => {
 
 function RwandaMap({ facilities, userLocation, highlightedFacility }) {
   return (
-    <div className="relative h-[520px] overflow-hidden rounded-[34px] border border-emerald-100 bg-[radial-gradient(circle_at_top,#ffffff_0%,#ecfdf3_50%,#daf4e6_100%)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+    <div className="mt-20 relative h-[520px] overflow-hidden rounded-[34px] border border-emerald-100 bg-[radial-gradient(circle_at_top,#ffffff_0%,#ecfdf3_50%,#daf4e6_100%)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600">Rwanda Map</p>
@@ -302,7 +302,7 @@ export default function FindCare() {
     <div className="min-h-screen bg-[#fbfdfb] text-slate-900">
       
 
-      <main id="find-care">
+      <main id="find-care" className="pt-20 ml-10">
         <section className="border-b border-slate-200 bg-white">
           <div className="mx-auto max-w-[1120px] px-6 py-10 lg:px-8 lg:py-12">
             <h1 className="text-4xl font-semibold tracking-[-0.04em] text-slate-950 lg:text-[3.1rem]">

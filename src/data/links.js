@@ -1,13 +1,14 @@
 export const links = {
   nav: [
-    { name: 'Features', href: '#features' },
-    { name: 'About', href: '#why-choose' },
-    { name: 'Pricing', href: '#' },
-    { name: 'Support', href: '#' },
+    { name: 'Home', href: '/' },
+    { name: 'Find Care', href: '/find-care' },
+    { name: 'Book Appointment', href: '/booking' },
+    { name: 'About', href: '/about' },
+    { name: 'Team', href: '/team' },
   ],
-  login: '#',
-  signup: '#',
-  heroPrimary: '#',
-  heroSecondary: '#',
-  contact: '#',
+  login: '/login',
+  signup: '/signup',
+  heroPrimary: '/booking',
+  heroSecondary: '/about',
+  contact: '/contact',
 }
