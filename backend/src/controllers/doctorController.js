@@ -1,166 +1,109 @@
+import asyncHandler from '../utils/asyncHandler.js';
+import AppError from '../utils/AppError.js';
+import Doctor from '../models/Doctor.js';
 import User from '../models/User.js';
+import { USER_ROLES } from '../constants/roles.js';
+import { getDoctorSlots } from '../services/schedulingService.js';
 
-// @desc    Get all doctors
-// @route   GET /api/v1/doctors
-// @access  Private (Admin)
-export const getDoctors = async (req, res, next) => {
-  try {
-    const doctors = await User.find({ role: 'doctor' }).select('-password');
+export const getDoctors = asyncHandler(async (req, res) => {
+  const filter = {};
 
-    res.status(200).json({
-      success: true,
-      count: doctors.length,
-      data: doctors,
-    });
-  } catch (error) {
-    next(error);
+  if (req.query.hospitalId) {
+    filter.hospitalId = req.query.hospitalId;
   }
-};
 
-// @desc    Get single doctor
-// @route   GET /api/v1/doctors/:id
-// @access  Public
-export const getDoctor = async (req, res, next) => {
-  try {
-    const doctor = await User.findOne({
-      _id: req.params.id,
-      role: 'doctor',
-    }).select('-password');
-
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: doctor,
-    });
-  } catch (error) {
-    next(error);
+  if (req.query.specialty) {
+    filter.specialty = req.query.specialty;
   }
-};
 
-// @desc    Get doctors by hospital
-// @route   GET /api/v1/doctors/hospital/:hospital
-// @access  Public
-export const getDoctorsByHospital = async (req, res, next) => {
-  try {
-    const doctors = await User.find({
-      role: 'doctor',
-      hospital: req.params.hospital,
-      status: 'active',
-    }).select('-password');
-
-    res.status(200).json({
-      success: true,
-      count: doctors.length,
-      data: doctors,
-    });
-  } catch (error) {
-    next(error);
+  if (req.query.status) {
+    filter.status = req.query.status;
   }
-};
 
-// @desc    Create new doctor
-// @route   POST /api/v1/doctors
-// @access  Private (Admin)
-export const createDoctor = async (req, res, next) => {
-  try {
-    const doctorData = {
-      ...req.body,
-      role: 'doctor',
-    };
+  const doctors = await Doctor.find(filter)
+    .populate('userId', 'fullName email phone status')
+    .populate('hospitalId', 'name slug');
 
-    const doctor = await User.create(doctorData);
+  res.status(200).json({ success: true, count: doctors.length, data: doctors });
+});
 
-    res.status(201).json({
-      success: true,
-      data: doctor,
-    });
-  } catch (error) {
-    next(error);
+export const createDoctor = asyncHandler(async (req, res) => {
+  const hospitalId = req.user.hospitalId;
+
+  const user = await User.create({
+    hospitalId,
+    fullName: req.body.fullName,
+    email: req.body.email,
+    password: req.body.password || process.env.DEFAULT_ACCOUNT_PASSWORD || 'pass@123',
+    phone: req.body.phone,
+    role: USER_ROLES.DOCTOR,
+  });
+
+  const doctor = await Doctor.create({
+    userId: user._id,
+    hospitalId,
+    specialty: req.body.specialty,
+    licenseNumber: req.body.licenseNumber,
+    yearsOfExperience: req.body.yearsOfExperience,
+    languages: req.body.languages || ['English'],
+    consultationModes: req.body.consultationModes || ['in_person'],
+  });
+
+  const populatedDoctor = await Doctor.findById(doctor._id)
+    .populate('userId', 'fullName email phone status')
+    .populate('hospitalId', 'name slug');
+
+  res.status(201).json({ success: true, data: populatedDoctor });
+});
+
+export const updateDoctor = asyncHandler(async (req, res) => {
+  const doctor = await Doctor.findOneAndUpdate(
+    { _id: req.params.id, hospitalId: req.user.hospitalId },
+    req.body,
+    { new: true, runValidators: true }
+  )
+    .populate('userId', 'fullName email phone status')
+    .populate('hospitalId', 'name slug');
+
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
   }
-};
 
-// @desc    Update doctor
-// @route   PUT /api/v1/doctors/:id
-// @access  Private (Admin)
-export const updateDoctor = async (req, res, next) => {
-  try {
-    const doctor = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    }).select('-password');
+  res.status(200).json({ success: true, data: doctor });
+});
 
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found',
-      });
-    }
+export const getDoctor = asyncHandler(async (req, res) => {
+  const doctor = await Doctor.findById(req.params.id)
+    .populate('userId', 'fullName email phone status')
+    .populate('hospitalId', 'name slug');
 
-    res.status(200).json({
-      success: true,
-      data: doctor,
-    });
-  } catch (error) {
-    next(error);
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
   }
-};
 
-// @desc    Delete doctor
-// @route   DELETE /api/v1/doctors/:id
-// @access  Private (Admin)
-export const deleteDoctor = async (req, res, next) => {
-  try {
-    const doctor = await User.findById(req.params.id);
+  res.status(200).json({ success: true, data: doctor });
+});
 
-    if (!doctor || doctor.role !== 'doctor') {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found',
-      });
-    }
-
-    await doctor.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      data: {},
-    });
-  } catch (error) {
-    next(error);
+export const getDoctorAvailability = asyncHandler(async (req, res) => {
+  const doctor = await Doctor.findById(req.params.id);
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
   }
-};
 
-// @desc    Get doctor statistics
-// @route   GET /api/v1/doctors/stats/overview
-// @access  Private (Admin)
-export const getDoctorStats = async (req, res, next) => {
-  try {
-    const total = await User.countDocuments({ role: 'doctor' });
-    const active = await User.countDocuments({ role: 'doctor', status: 'active' });
-    const onLeave = await User.countDocuments({ role: 'doctor', status: 'on-leave' });
-    const inactive = await User.countDocuments({ role: 'doctor', status: 'inactive' });
+  const slots = await getDoctorSlots({
+    doctorId: doctor._id,
+    hospitalId: doctor.hospitalId,
+    date: req.query.date,
+  });
 
-    // Get total patients across all doctors
-    const doctors = await User.find({ role: 'doctor' });
-    const totalPatients = doctors.reduce((sum, doc) => sum + (doc.patients || 0), 0);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        total,
-        active,
-        onLeave,
-        inactive,
-        totalPatients,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  res.status(200).json({
+    success: true,
+    count: slots.length,
+    data: {
+      doctorId: doctor._id,
+      hospitalId: doctor.hospitalId,
+      date: req.query.date,
+      slots,
+    },
+  });
+});

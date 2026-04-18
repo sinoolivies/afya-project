@@ -1,83 +1,66 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { USER_ROLE_VALUES } from '../constants/roles.js';
 
 const userSchema = new mongoose.Schema(
   {
+    hospitalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+      required: true,
+      index: true,
+    },
     fullName: {
       type: String,
-      required: [true, 'Please provide full name'],
+      required: true,
       trim: true,
     },
     email: {
       type: String,
-      required: [true, 'Please provide email'],
+      required: true,
       unique: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        'Please provide a valid email',
-      ],
     },
     password: {
       type: String,
-      required: [true, 'Please provide password'],
+      required: true,
       minlength: 6,
       select: false,
     },
     role: {
       type: String,
-      enum: ['patient', 'doctor', 'admin'],
-      default: 'patient',
+      enum: USER_ROLE_VALUES,
+      required: true,
     },
-    hospital: {
-      type: String,
-      required: function () {
-        return this.role === 'doctor' || this.role === 'admin';
-      },
-    },
-    phone: {
-      type: String,
-    },
-    specialty: {
-      type: String,
-      required: function () {
-        return this.role === 'doctor';
-      },
-    },
-    experience: {
-      type: String,
-    },
-    patients: {
-      type: Number,
-      default: 0,
-    },
+    phone: String,
     status: {
       type: String,
-      enum: ['active', 'on-leave', 'inactive'],
+      enum: ['active', 'inactive', 'on_leave'],
       default: 'active',
     },
-    avatar: {
-      type: String,
-    },
+    lastLoginAt: Date,
   },
   {
     timestamps: true,
   }
 );
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
+userSchema.index({ hospitalId: 1, role: 1, status: 1 });
+
+userSchema.pre('save', async function savePassword(next) {
   if (!this.isModified('password')) {
     next();
+    return;
   }
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Compare password method
-userSchema.methods.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+userSchema.methods.comparePassword = async function comparePassword(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 const User = mongoose.model('User', userSchema);

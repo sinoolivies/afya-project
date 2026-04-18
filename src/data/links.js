@@ -6,9 +6,9 @@ export const links = {
     { name: 'About', href: '/about' },
     { name: 'Team', href: '/team' },
   ],
-  login: '/login',
-  signup: '/signup',
+  login: '/dashboard',
+  signup: '/register-hospital',
   heroPrimary: '/booking',
-  heroSecondary: '/about',
-  contact: '/contact',
+  heroSecondary: '/dashboard',
+  contact: '/dashboard',
 }

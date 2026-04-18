@@ -1,24 +1,20 @@
 import express from 'express';
 import {
-  getHospitals,
   getHospital,
-  createHospital,
+  getHospitals,
+  getLeastBusyHospitals,
+  getNearestHospitals,
   updateHospital,
-  deleteHospital,
-  getHospitalsInRadius,
 } from '../controllers/hospitalController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { authorize, protect } from '../middleware/auth.js';
+import { USER_ROLES } from '../constants/roles.js';
 
 const router = express.Router();
 
-// Public routes
 router.get('/', getHospitals);
+router.get('/nearest/search', getNearestHospitals);
+router.get('/least-busy/search', getLeastBusyHospitals);
 router.get('/:id', getHospital);
-router.get('/radius/:zipcode/:distance', getHospitalsInRadius);
-
-// Protected routes (Admin only)
-router.post('/', protect, authorize('admin'), createHospital);
-router.put('/:id', protect, authorize('admin'), updateHospital);
-router.delete('/:id', protect, authorize('admin'), deleteHospital);
+router.put('/:id', protect, authorize(USER_ROLES.HOSPITAL_ADMIN), updateHospital);
 
 export default router;

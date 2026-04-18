@@ -1,141 +1,129 @@
+import asyncHandler from '../utils/asyncHandler.js';
+import AppError from '../utils/AppError.js';
 import Hospital from '../models/Hospital.js';
 
-// @desc    Get all hospitals
-// @route   GET /api/v1/hospitals
-// @access  Public
-export const getHospitals = async (req, res, next) => {
-  try {
-    let query = {};
+export const getHospitals = asyncHandler(async (req, res) => {
+  const query = {
+    status: req.query.status || 'active',
+  };
 
-    // Filter by type if provided
-    if (req.query.type) {
-      query.type = req.query.type;
-    }
-
-    // Filter by verified status
-    if (req.query.verified !== undefined) {
-      query.verified = req.query.verified === 'true';
-    }
-
-    const hospitals = await Hospital.find(query).sort({ rating: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: hospitals.length,
-      data: hospitals,
-    });
-  } catch (error) {
-    next(error);
+  if (req.query.type) {
+    query.type = req.query.type;
   }
-};
 
-// @desc    Get single hospital
-// @route   GET /api/v1/hospitals/:id
-// @access  Public
-export const getHospital = async (req, res, next) => {
-  try {
-    const hospital = await Hospital.findById(req.params.id);
-
-    if (!hospital) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: hospital,
-    });
-  } catch (error) {
-    next(error);
+  if (req.query.department) {
+    query.departments = req.query.department;
   }
-};
 
-// @desc    Create new hospital
-// @route   POST /api/v1/hospitals
-// @access  Private (Admin)
-export const createHospital = async (req, res, next) => {
-  try {
-    const hospital = await Hospital.create(req.body);
+  const hospitals = await Hospital.find(query).sort({ name: 1 });
+  res.status(200).json({ success: true, count: hospitals.length, data: hospitals });
+});
 
-    res.status(201).json({
-      success: true,
-      data: hospital,
-    });
-  } catch (error) {
-    next(error);
+export const getHospital = asyncHandler(async (req, res) => {
+  const hospital = await Hospital.findById(req.params.id);
+  if (!hospital) {
+    throw new AppError('Hospital not found', 404);
   }
-};
+  res.status(200).json({ success: true, data: hospital });
+});
 
-// @desc    Update hospital
-// @route   PUT /api/v1/hospitals/:id
-// @access  Private (Admin)
-export const updateHospital = async (req, res, next) => {
-  try {
-    const hospital = await Hospital.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!hospital) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: hospital,
-    });
-  } catch (error) {
-    next(error);
+export const updateHospital = asyncHandler(async (req, res) => {
+  if (String(req.params.id) !== String(req.user.hospitalId)) {
+    throw new AppError('Hospital not found', 404);
   }
-};
 
-// @desc    Delete hospital
-// @route   DELETE /api/v1/hospitals/:id
-// @access  Private (Admin)
-export const deleteHospital = async (req, res, next) => {
-  try {
-    const hospital = await Hospital.findById(req.params.id);
+  const hospital = await Hospital.findByIdAndUpdate(req.user.hospitalId, req.body, {
+    new: true,
+    runValidators: true,
+  });
 
-    if (!hospital) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found',
-      });
-    }
-
-    await hospital.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      data: {},
-    });
-  } catch (error) {
-    next(error);
+  if (!hospital) {
+    throw new AppError('Hospital not found', 404);
   }
-};
 
-// @desc    Get hospitals within radius
-// @route   GET /api/v1/hospitals/radius/:zipcode/:distance
-// @access  Public
-export const getHospitalsInRadius = async (req, res, next) => {
-  try {
-    const { zipcode, distance } = req.params;
+  res.status(200).json({ success: true, data: hospital });
+});
 
-    // For demo purposes, return all hospitals
-    // In production, you would use geospatial queries
-    const hospitals = await Hospital.find({}).limit(10);
+export const getNearestHospitals = asyncHandler(async (req, res) => {
+  const { latitude, longitude, specialty } = req.query;
 
-    res.status(200).json({
-      success: true,
-      count: hospitals.length,
-      data: hospitals,
-    });
-  } catch (error) {
-    next(error);
+  if (!latitude || !longitude) {
+    throw new AppError('latitude and longitude are required', 400);
   }
-};
+
+  const hospitals = await Hospital.aggregate([
+    {
+      $geoNear: {
+        near: {
+          type: 'Point',
+          coordinates: [Number(longitude), Number(latitude)],
+        },
+        distanceField: 'distanceMeters',
+        spherical: true,
+        query: {
+          status: 'active',
+          acceptingAppointments: true,
+          ...(specialty ? { departments: specialty } : {}),
+        },
+      },
+    },
+    { $limit: Number(req.query.limit || 5) },
+  ]);
+
+  res.status(200).json({ success: true, count: hospitals.length, data: hospitals });
+});
+
+export const getLeastBusyHospitals = asyncHandler(async (req, res) => {
+  const days = Number(req.query.days || 7);
+  const start = new Date();
+  const end = new Date();
+  end.setDate(end.getDate() + days);
+
+  const hospitals = await Hospital.aggregate([
+    {
+      $match: {
+        status: 'active',
+        acceptingAppointments: true,
+      },
+    },
+    {
+      $lookup: {
+        from: 'appointments',
+        let: { hospitalId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$hospitalId', '$$hospitalId'] },
+              scheduledFor: { $gte: start, $lte: end },
+              status: { $in: ['pending', 'approved'] },
+            },
+          },
+          {
+            $count: 'activeLoad',
+          },
+        ],
+        as: 'load',
+      },
+    },
+    {
+      $addFields: {
+        activeLoad: {
+          $ifNull: [{ $arrayElemAt: ['$load.activeLoad', 0] }, 0],
+        },
+      },
+    },
+    { $sort: { activeLoad: 1, name: 1 } },
+    { $limit: Number(req.query.limit || 5) },
+    {
+      $project: {
+        load: 0,
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    success: true,
+    count: hospitals.length,
+    data: hospitals,
+  });
+});

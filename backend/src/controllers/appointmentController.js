@@ -1,233 +1,288 @@
+import asyncHandler from '../utils/asyncHandler.js';
+import AppError from '../utils/AppError.js';
 import Appointment from '../models/Appointment.js';
+import Doctor from '../models/Doctor.js';
+import Hospital from '../models/Hospital.js';
+import { APPOINTMENT_STATUS } from '../constants/appointmentStatus.js';
+import { upsertPatient } from '../services/patientService.js';
+import { getDoctorSlots } from '../services/schedulingService.js';
+import { sendAppointmentNotification } from '../services/notificationService.js';
 import User from '../models/User.js';
 
-// @desc    Get all appointments
-// @route   GET /api/v1/appointments
-// @access  Private (Admin/Doctor)
-export const getAppointments = async (req, res, next) => {
-  try {
-    let query;
+const appointmentPopulation = [
+  { path: 'hospitalId', select: 'name slug contact address' },
+  {
+    path: 'doctorId',
+    populate: {
+      path: 'userId',
+      select: 'fullName email phone',
+    },
+  },
+  { path: 'patientId', select: 'fullName email phone location' },
+];
 
-    // If user is a doctor, only show their appointments
-    if (req.user.role === 'doctor') {
-      query = { doctorId: req.user._id };
-    } else {
-      // Admin can see all appointments
-      query = {};
+export const getAppointments = asyncHandler(async (req, res) => {
+  const filter = { hospitalId: req.user.hospitalId };
+
+  if (req.user.role === 'doctor') {
+    const doctorProfile = await Doctor.findOne({ userId: req.user._id });
+    if (!doctorProfile) {
+      throw new AppError('Doctor profile not found', 404);
     }
-
-    // Filter by status if provided
-    if (req.query.status) {
-      query.status = req.query.status;
-    }
-
-    const appointments = await Appointment.find(query)
-      .populate('doctorId', 'fullName specialty')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: appointments.length,
-      data: appointments,
-    });
-  } catch (error) {
-    next(error);
+    filter.doctorId = doctorProfile._id;
   }
-};
 
-// @desc    Get single appointment
-// @route   GET /api/v1/appointments/:id
-// @access  Private
-export const getAppointment = async (req, res, next) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id).populate(
-      'doctorId',
-      'fullName specialty phone'
+  if (req.query.status) {
+    filter.status = req.query.status;
+  }
+
+  if (req.query.doctorId && req.user.role !== 'doctor') {
+    filter.doctorId = req.query.doctorId;
+  }
+
+  const appointments = await Appointment.find(filter)
+    .populate(appointmentPopulation)
+    .sort({ scheduledFor: 1 });
+
+  res.status(200).json({ success: true, count: appointments.length, data: appointments });
+});
+
+export const getAppointment = asyncHandler(async (req, res) => {
+  const filter = {
+    _id: req.params.id,
+    hospitalId: req.user.hospitalId,
+  };
+
+  if (req.user.role === 'doctor') {
+    const doctorProfile = await Doctor.findOne({ userId: req.user._id });
+    if (!doctorProfile) {
+      throw new AppError('Doctor profile not found', 404);
+    }
+    filter.doctorId = doctorProfile._id;
+  }
+
+  const appointment = await Appointment.findOne(filter).populate(appointmentPopulation);
+
+  if (!appointment) {
+    throw new AppError('Appointment not found', 404);
+  }
+
+  res.status(200).json({ success: true, data: appointment });
+});
+
+const createPendingAppointment = async ({ payload, source }) => {
+  const patient = await upsertPatient(payload.patient);
+  const doctor = await Doctor.findById(payload.doctorId);
+
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
+  }
+
+  const hospital = await Hospital.findById(payload.hospitalId || doctor.hospitalId);
+  if (!hospital || hospital.status !== 'active' || !hospital.acceptingAppointments) {
+    throw new AppError('Hospital is not accepting appointments', 400);
+  }
+
+  if (String(doctor.hospitalId) !== String(hospital._id)) {
+    throw new AppError('Doctor does not belong to the selected hospital', 400);
+  }
+
+  const normalizedEmail = payload.patient.email.trim().toLowerCase();
+
+  const duplicateBooking = await Appointment.findOne({
+    hospitalId: hospital._id,
+    patientEmail: normalizedEmail,
+    slotStart: new Date(payload.slotStart),
+  });
+
+  if (duplicateBooking) {
+    throw new AppError(
+      'This patient email already has an appointment at the same hospital and time slot',
+      409
     );
-
-    if (!appointment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Appointment not found',
-      });
-    }
-
-    // Check authorization
-    if (
-      req.user.role === 'doctor' &&
-      appointment.doctorId.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to access this appointment',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: appointment,
-    });
-  } catch (error) {
-    next(error);
   }
+
+  const slots = await getDoctorSlots({
+    doctorId: doctor._id,
+    hospitalId: hospital._id,
+    date: payload.scheduledFor,
+  });
+
+  const requestedStart = new Date(payload.slotStart).toISOString();
+  const requestedEnd = new Date(payload.slotEnd).toISOString();
+  const isSlotAvailable = slots.some((slot) => slot.start === requestedStart && slot.end === requestedEnd);
+
+  if (!isSlotAvailable) {
+    throw new AppError('Requested slot is no longer available', 409);
+  }
+
+  const appointment = await Appointment.create({
+    hospitalId: hospital._id,
+    doctorId: doctor._id,
+    patientId: patient._id,
+    patientEmail: normalizedEmail,
+    source,
+    reason: payload.reason,
+    symptoms: payload.symptoms,
+    triage: payload.triage || {},
+    scheduledFor: payload.scheduledFor,
+    slotStart: payload.slotStart,
+    slotEnd: payload.slotEnd,
+    status: APPOINTMENT_STATUS.PENDING,
+  });
+
+  const populated = await Appointment.findById(appointment._id).populate(appointmentPopulation);
+  const adminUser = await User.findOne({
+    hospitalId: hospital._id,
+    role: 'hospital_admin',
+    status: 'active',
+  }).lean();
+
+  const notification = await sendAppointmentNotification({
+    to: adminUser?.email || hospital.contact?.email,
+    subject: `Pending appointment review for ${patient.fullName}`,
+    context: {
+      type: 'appointment_created',
+      patientName: patient.fullName,
+      doctorName: populated.doctorId?.userId?.fullName || 'Assigned doctor',
+      hospitalName: hospital.name,
+      dateLabel: new Date(populated.slotStart).toLocaleString('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }),
+      reason: payload.reason,
+    },
+  });
+
+  populated.notification = {
+    notifiedAt: notification.sentAt ? new Date(notification.sentAt) : null,
+    lastChannel: notification.channel,
+    lastStatus: notification.accepted ? 'sent' : 'failed',
+  };
+  await populated.save();
+
+  return populated;
 };
 
-// @desc    Create new appointment
-// @route   POST /api/v1/appointments
-// @access  Public
-export const createAppointment = async (req, res, next) => {
-  try {
-    const { patient, doctor, doctorId, hospital, date, time, symptoms, aiGenerated } = req.body;
+export const createAppointment = asyncHandler(async (req, res) => {
+  const appointment = await createPendingAppointment({
+    payload: req.body,
+    source: 'manual',
+  });
 
-    // Create appointment
-    const appointment = await Appointment.create({
-      patient,
-      doctor,
-      doctorId,
-      hospital,
-      date,
-      time,
-      symptoms,
-      aiGenerated: aiGenerated || false,
-      status: 'pending',
-    });
+  res.status(201).json({ success: true, data: appointment });
+});
 
-    res.status(201).json({
-      success: true,
-      data: appointment,
-    });
-  } catch (error) {
-    next(error);
+export const createAiAppointment = asyncHandler(async (req, res) => {
+  const appointment = await createPendingAppointment({
+    payload: req.body,
+    source: 'ai',
+  });
+
+  res.status(201).json({ success: true, data: appointment });
+});
+
+export const updateAppointmentStatus = asyncHandler(async (req, res) => {
+  const filter = {
+    _id: req.params.id,
+    hospitalId: req.user.hospitalId,
+  };
+
+  if (req.user.role === 'doctor') {
+    const doctorProfile = await Doctor.findOne({ userId: req.user._id });
+    if (!doctorProfile) {
+      throw new AppError('Doctor profile not found', 404);
+    }
+    filter.doctorId = doctorProfile._id;
   }
-};
 
-// @desc    Update appointment status
-// @route   PATCH /api/v1/appointments/:id/status
-// @access  Private (Admin)
-export const updateAppointmentStatus = async (req, res, next) => {
-  try {
-    const { status, rejectionReason, notes } = req.body;
+  const appointment = await Appointment.findOne(filter);
 
-    const appointment = await Appointment.findById(req.params.id);
-
-    if (!appointment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Appointment not found',
-      });
-    }
-
-    appointment.status = status;
-    
-    if (rejectionReason) {
-      appointment.rejectionReason = rejectionReason;
-    }
-    
-    if (notes) {
-      appointment.notes = notes;
-    }
-
-    await appointment.save();
-
-    res.status(200).json({
-      success: true,
-      data: appointment,
-    });
-  } catch (error) {
-    next(error);
+  if (!appointment) {
+    throw new AppError('Appointment not found', 404);
   }
-};
 
-// @desc    Update appointment
-// @route   PUT /api/v1/appointments/:id
-// @access  Private (Admin)
-export const updateAppointment = async (req, res, next) => {
-  try {
-    const appointment = await Appointment.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+  appointment.status = req.body.status;
+  appointment.approval = {
+    approvedByUserId: req.user._id,
+    approvedAt: new Date(),
+    rejectionReason: req.body.rejectionReason,
+    notes: req.body.notes,
+  };
 
-    if (!appointment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Appointment not found',
-      });
-    }
+  await appointment.save();
 
-    res.status(200).json({
-      success: true,
-      data: appointment,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  const populated = await Appointment.findById(appointment._id).populate(appointmentPopulation);
+  const patientEmail = populated.patientId?.email || process.env.TEST_PATIENT_EMAIL;
 
-// @desc    Delete appointment
-// @route   DELETE /api/v1/appointments/:id
-// @access  Private (Admin)
-export const deleteAppointment = async (req, res, next) => {
-  try {
-    const appointment = await Appointment.findById(req.params.id);
-
-    if (!appointment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Appointment not found',
-      });
-    }
-
-    await appointment.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      data: {},
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Get appointment statistics
-// @route   GET /api/v1/appointments/stats/overview
-// @access  Private (Admin)
-export const getAppointmentStats = async (req, res, next) => {
-  try {
-    const total = await Appointment.countDocuments();
-    const pending = await Appointment.countDocuments({ status: 'pending' });
-    const approved = await Appointment.countDocuments({ status: 'approved' });
-    const rejected = await Appointment.countDocuments({ status: 'rejected' });
-    const completed = await Appointment.countDocuments({ status: 'completed' });
-
-    // Get today's approved appointments
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const approvedToday = await Appointment.countDocuments({
-      status: 'approved',
-      updatedAt: { $gte: today, $lt: tomorrow },
-    });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        total,
-        pending,
-        approved,
-        rejected,
-        completed,
-        approvedToday,
+  if (patientEmail) {
+    await sendAppointmentNotification({
+      to: patientEmail,
+      subject: `Your appointment was ${req.body.status}`,
+      context: {
+        type: 'appointment_status_updated',
+        patientName: populated.patientId?.fullName || 'Patient',
+        doctorName: populated.doctorId?.userId?.fullName || 'your doctor',
+        hospitalName: populated.hospitalId?.name || 'the hospital',
+        statusLabel: req.body.status,
+        dateLabel: new Date(populated.slotStart).toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }),
+        notes: req.body.notes || req.body.rejectionReason || '',
       },
     });
-  } catch (error) {
-    next(error);
   }
-};
+
+  res.status(200).json({ success: true, data: populated });
+});
+
+export const getAppointmentStats = asyncHandler(async (req, res) => {
+  const hospitalId = req.user.hospitalId;
+  let doctorProfile = null;
+
+  if (req.user.role === 'doctor') {
+    doctorProfile = await Doctor.findOne({ userId: req.user._id });
+    if (!doctorProfile) {
+      throw new AppError('Doctor profile not found', 404);
+    }
+  }
+
+  const statsFilter = doctorProfile ? { hospitalId, doctorId: doctorProfile._id } : { hospitalId };
+  const [total, pending, approved, rejected, completed] = await Promise.all([
+    Appointment.countDocuments(statsFilter),
+    Appointment.countDocuments({ ...statsFilter, status: APPOINTMENT_STATUS.PENDING }),
+    Appointment.countDocuments({ ...statsFilter, status: APPOINTMENT_STATUS.APPROVED }),
+    Appointment.countDocuments({ ...statsFilter, status: APPOINTMENT_STATUS.REJECTED }),
+    Appointment.countDocuments({ ...statsFilter, status: APPOINTMENT_STATUS.COMPLETED }),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: { total, pending, approved, rejected, completed },
+  });
+});
+
+export const notifyAppointment = asyncHandler(async (req, res) => {
+  const appointment = await Appointment.findById(req.body.appointmentId).populate(appointmentPopulation);
+  if (!appointment) {
+    throw new AppError('Appointment not found', 404);
+  }
+
+  const notification = await sendAppointmentNotification({
+    to: appointment.hospitalId.contact?.email || req.body.to,
+    subject: req.body.subject || `Pending appointment for ${appointment.patientId.fullName}`,
+    html:
+      req.body.html ||
+      `<p>A pending appointment requires review for ${appointment.patientId.fullName}.</p>`,
+  });
+
+  appointment.notification = {
+    notifiedAt: new Date(notification.sentAt),
+    lastChannel: notification.channel,
+    lastStatus: notification.accepted ? 'sent' : 'failed',
+  };
+  await appointment.save();
+
+  res.status(200).json({ success: true, data: notification });
+});

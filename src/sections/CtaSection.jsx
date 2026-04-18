@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRightIcon } from '../components/icons'
 import { links } from '../data/links'
 
@@ -19,19 +20,19 @@ const CtaSection = () => {
               smarter with AfyaCare. It's free to get started.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <a
-                href={links.signup}
+              <Link
+                to={links.signup}
                 className="flex items-center gap-2 rounded-2xl bg-brand-600 px-8 py-4 text-base font-semibold text-white shadow-premium transition hover:bg-brand-700 hover:shadow-brand-300/40 active:scale-95"
               >
                 Get Started for Free
                 <ArrowRightIcon className="h-5 w-5" />
-              </a>
-              <a
-                href={links.contact}
+              </Link>
+              <Link
+                to={links.contact}
                 className="text-base font-semibold leading-6 text-slate-600 hover:text-brand-600 transition"
               >
                 Talk to Support <span aria-hidden="true">→</span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

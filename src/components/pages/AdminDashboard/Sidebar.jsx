@@ -7,7 +7,16 @@ const navItems = [
   { hash: "settings", icon: <Settings size={18} />, label: "Settings" },
 ];
 
-export default function Sidebar({ activeTab }) {
+export default function Sidebar({ activeTab, user }) {
+  const initials = user?.fullName
+    ? user.fullName
+        .split(" ")
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+    : "AC";
+
   return (
     <div className="w-64 bg-white border-r p-4 relative">
       <div className="space-y-4 mt-10">
@@ -29,11 +38,11 @@ export default function Sidebar({ activeTab }) {
 
       <div className="absolute bottom-6 flex items-center gap-3">
         <div className="bg-green-600 text-white w-10 h-10 flex items-center justify-center rounded-full">
-          AU
+          {initials}
         </div>
         <div>
-          <p className="font-medium">Admin User</p>
-          <p className="text-sm text-gray-500">admin@hospital.com</p>
+          <p className="font-medium">{user?.fullName || "AfyaCare Staff"}</p>
+          <p className="text-sm text-gray-500">{user?.email || "dashboard access"}</p>
         </div>
       </div>
     </div>

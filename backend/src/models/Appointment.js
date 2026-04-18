@@ -1,65 +1,80 @@
 import mongoose from 'mongoose';
+import { APPOINTMENT_STATUS_VALUES } from '../constants/appointmentStatus.js';
 
 const appointmentSchema = new mongoose.Schema(
   {
-    patient: {
-      name: {
-        type: String,
-        required: [true, 'Patient name is required'],
-      },
-      email: {
-        type: String,
-        required: [true, 'Patient email is required'],
-      },
-      phone: {
-        type: String,
-        required: [true, 'Patient phone is required'],
-      },
-      avatar: {
-        type: String,
-      },
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    },
-    doctor: {
-      type: String,
-      required: [true, 'Doctor name is required'],
+    hospitalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hospital',
+      required: true,
+      index: true,
     },
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Doctor',
+      required: true,
+      index: true,
     },
-    hospital: {
-      type: String,
-      required: [true, 'Hospital is required'],
+    patientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Patient',
+      required: true,
+      index: true,
     },
-    date: {
+    patientEmail: {
       type: String,
-      required: [true, 'Appointment date is required'],
+      required: true,
+      lowercase: true,
+      trim: true,
     },
-    time: {
+    source: {
       type: String,
-      required: [true, 'Appointment time is required'],
+      enum: ['ai', 'manual'],
+      default: 'manual',
     },
-    symptoms: {
+    reason: {
       type: String,
+      required: true,
+    },
+    symptoms: String,
+    triage: {
+      urgency: {
+        type: String,
+        enum: ['low', 'medium', 'high', 'emergency'],
+        default: 'low',
+      },
+      notes: String,
+    },
+    scheduledFor: {
+      type: Date,
+      required: true,
+    },
+    slotStart: {
+      type: Date,
+      required: true,
+    },
+    slotEnd: {
+      type: Date,
+      required: true,
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'completed', 'cancelled'],
+      enum: APPOINTMENT_STATUS_VALUES,
       default: 'pending',
     },
-    aiGenerated: {
-      type: Boolean,
-      default: false,
+    approval: {
+      approvedByUserId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      approvedAt: Date,
+      rejectionReason: String,
+      notes: String,
     },
-    notes: {
-      type: String,
-    },
-    rejectionReason: {
-      type: String,
+    notification: {
+      notifiedAt: Date,
+      lastChannel: String,
+      lastStatus: String,
     },
   },
   {
@@ -67,10 +82,10 @@ const appointmentSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster queries
-appointmentSchema.index({ status: 1, date: 1 });
-appointmentSchema.index({ 'patient.email': 1 });
-appointmentSchema.index({ doctorId: 1 });
+appointmentSchema.index({ hospitalId: 1, status: 1, scheduledFor: 1 });
+appointmentSchema.index({ doctorId: 1, slotStart: 1 });
+appointmentSchema.index({ patientId: 1, createdAt: -1 });
+appointmentSchema.index({ hospitalId: 1, patientEmail: 1, slotStart: 1 }, { unique: true });
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 

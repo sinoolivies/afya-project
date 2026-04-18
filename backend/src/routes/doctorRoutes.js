@@ -1,26 +1,22 @@
 import express from 'express';
 import {
-  getDoctors,
-  getDoctor,
-  getDoctorsByHospital,
   createDoctor,
+  getDoctor,
+  getDoctorAvailability,
+  getDoctors,
   updateDoctor,
-  deleteDoctor,
-  getDoctorStats,
 } from '../controllers/doctorController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { authorize, protect } from '../middleware/auth.js';
+import { USER_ROLES } from '../constants/roles.js';
+import { validate } from '../middleware/validate.js';
+import { doctorValidation } from '../validators/doctorValidators.js';
 
 const router = express.Router();
 
-// Public routes
 router.get('/', getDoctors);
 router.get('/:id', getDoctor);
-router.get('/hospital/:hospital', getDoctorsByHospital);
-
-// Protected routes (Admin only)
-router.post('/', protect, authorize('admin'), createDoctor);
-router.get('/stats/overview', protect, authorize('admin'), getDoctorStats);
-router.put('/:id', protect, authorize('admin'), updateDoctor);
-router.delete('/:id', protect, authorize('admin'), deleteDoctor);
+router.get('/:id/slots', getDoctorAvailability);
+router.post('/', protect, authorize(USER_ROLES.HOSPITAL_ADMIN), doctorValidation, validate, createDoctor);
+router.put('/:id', protect, authorize(USER_ROLES.HOSPITAL_ADMIN), doctorValidation, validate, updateDoctor);
 
 export default router;

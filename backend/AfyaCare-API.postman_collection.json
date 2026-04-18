@@ -1,0 +1,128 @@
+{
+  "info": {
+    "name": "AfyaCare API",
+    "_postman_id": "e3944573-4187-4bcc-9b76-d423d4b0f001",
+    "description": "Core smoke tests for the AfyaCare multi-hospital Node API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Register Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hospitalName\": \"Afya Demo Hospital\",\n  \"hospitalType\": \"hospital\",\n  \"hospitalEmail\": \"demo-hospital@example.com\",\n  \"hospitalPhone\": \"+250788999111\",\n  \"address\": {\n    \"street\": \"KG 1 Ave\",\n    \"city\": \"Kigali\",\n    \"district\": \"Gasabo\",\n    \"fullAddress\": \"KG 1 Ave, Kigali, Rwanda\"\n  },\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [30.0619, -1.9441]\n  },\n  \"departments\": [\"General Medicine\"],\n  \"admin\": {\n    \"fullName\": \"Demo Admin\",\n    \"email\": \"demo-admin@example.com\",\n    \"password\": \"Password123\",\n    \"phone\": \"+250788999112\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register-admin",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "register-admin"]
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const json = pm.response.json();",
+              "  pm.environment.set('token', json.data.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"huguetteuwase84@gmail.com\",\n  \"password\": \"pass@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Current User",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "Hospitals",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/hospitals",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "hospitals"]
+        }
+      }
+    },
+    {
+      "name": "Internal Nearest Hospitals",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-internal-api-key",
+            "value": "{{internalApiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/internal/hospitals/nearest?latitude=-1.9441&longitude=30.0619&limit=2",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "internal", "hospitals", "nearest"],
+          "query": [
+            { "key": "latitude", "value": "-1.9441" },
+            { "key": "longitude", "value": "30.0619" },
+            { "key": "limit", "value": "2" }
+          ]
+        }
+      }
+    }
+  ]
+}

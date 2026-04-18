@@ -4,19 +4,36 @@ const hospitalSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Hospital name is required'],
+      required: true,
+      trim: true,
+    },
+    slug: {
+      type: String,
+      required: true,
+      lowercase: true,
       trim: true,
     },
     type: {
       type: String,
-      enum: ['hospital', 'clinic', 'urgent-care'],
+      enum: ['hospital', 'clinic'],
       default: 'hospital',
+    },
+    contact: {
+      email: {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+      phone: String,
     },
     address: {
       street: String,
       city: String,
-      state: String,
-      zipCode: String,
+      district: String,
+      country: {
+        type: String,
+        default: 'Rwanda',
+      },
       fullAddress: String,
     },
     location: {
@@ -26,53 +43,39 @@ const hospitalSchema = new mongoose.Schema(
         default: 'Point',
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
-        default: [0, 0],
+        type: [Number],
+        default: [30.0619, -1.9441],
       },
     },
-    distance: {
-      type: String,
+    departments: {
+      type: [String],
+      default: [],
     },
-    rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 4.5,
-    },
-    phone: {
-      type: String,
-    },
-    emergency: {
+    supportsEmergency: {
       type: Boolean,
       default: false,
     },
-    departments: [
-      {
-        type: String,
-      },
-    ],
-    operatingHours: {
-      monday: { open: String, close: String },
-      tuesday: { open: String, close: String },
-      wednesday: { open: String, close: String },
-      thursday: { open: String, close: String },
-      friday: { open: String, close: String },
-      saturday: { open: String, close: String },
-      sunday: { open: String, close: String },
-    },
-    services: [
-      {
-        type: String,
-      },
-    ],
-    images: [
-      {
-        type: String,
-      },
-    ],
-    verified: {
+    acceptingAppointments: {
       type: Boolean,
-      default: false,
+      default: true,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active',
+    },
+    metadata: {
+      description: String,
+      timezone: {
+        type: String,
+        default: 'Africa/Kigali',
+      },
+      averageRating: {
+        type: Number,
+        default: 4.5,
+        min: 0,
+        max: 5,
+      },
     },
   },
   {
@@ -80,9 +83,9 @@ const hospitalSchema = new mongoose.Schema(
   }
 );
 
-// Index for geospatial queries
+hospitalSchema.index({ slug: 1 }, { unique: true });
+hospitalSchema.index({ status: 1, type: 1 });
 hospitalSchema.index({ location: '2dsphere' });
-hospitalSchema.index({ type: 1, verified: 1 });
 
 const Hospital = mongoose.model('Hospital', hospitalSchema);
 

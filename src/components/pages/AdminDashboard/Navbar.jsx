@@ -1,14 +1,23 @@
-import { Search, Bell, ChevronDown, LogOut } from "lucide-react";
+import { Bell, ChevronDown, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { clearStoredAuth } from "../../../lib/api";
 
-export default function Navbar() {
+export default function Navbar({ user, notificationCount = 0 }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Clear auth (adjust based on your backend)
-    localStorage.removeItem("token");
-    navigate("/login");
+    clearStoredAuth();
+    navigate("/dashboard");
   };
+
+  const initials = user?.fullName
+    ? user.fullName
+        .split(" ")
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+    : "AC";
 
   return (
     <div className="flex items-center justify-between bg-white px-6 py-4 shadow-sm">
@@ -18,9 +27,9 @@ export default function Navbar() {
         {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="bg-green-600 text-white w-10 h-10 flex items-center justify-center rounded-full font-bold">
-            M
+            A
           </div>
-          <h1 className="text-xl font-semibold">MediAssist</h1>
+          <h1 className="text-xl font-semibold">AfyaCare</h1>
         </div>
 
         {/* Page Title */}
@@ -31,30 +40,20 @@ export default function Navbar() {
 
       {/* Right */}
       <div className="flex items-center gap-4">
-        
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search appointments, doctors..."
-            className="pl-10 pr-4 py-2 border rounded-lg bg-gray-100 focus:outline-none"
-          />
-        </div>
-
         {/* Notification */}
         <div className="relative cursor-pointer">
           <Bell />
           <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 rounded-full">
-            3
+            {notificationCount}
           </span>
         </div>
 
         {/* Profile */}
         <div className="flex items-center gap-2 cursor-pointer">
           <div className="bg-green-600 text-white w-8 h-8 flex items-center justify-center rounded-full">
-            AU
+            {initials}
           </div>
+          <span className="text-sm text-gray-600">{user?.role || "guest"}</span>
           <ChevronDown size={16} />
         </div>
 

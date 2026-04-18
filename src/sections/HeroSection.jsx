@@ -2,7 +2,6 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRightIcon } from '../components/icons'
 import HeroVisual from '../components/HeroVisual'
-import { links } from '../data/links'
 
 const HeroSection = () => {
   return (
@@ -34,7 +33,7 @@ const HeroSection = () => {
             </Link>
             <Link
               className="group flex items-center gap-2 rounded-2xl border-2 border-[#35aa56] px-8 py-4 text-base font-bold text-[#35aa56] transition hover:bg-[#e9f7ee] active:scale-95"
-              to="/login"
+              to="/dashboard"
             >
               Provider Login
             </Link>

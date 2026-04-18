@@ -1,26 +1,33 @@
 import express from 'express';
 import {
-  getAppointments,
-  getAppointment,
   createAppointment,
-  updateAppointmentStatus,
-  updateAppointment,
-  deleteAppointment,
+  getAppointment,
+  getAppointments,
   getAppointmentStats,
+  updateAppointmentStatus,
 } from '../controllers/appointmentController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { authorize, protect } from '../middleware/auth.js';
+import { USER_ROLES } from '../constants/roles.js';
+import { bookingRateLimiter } from '../middleware/rateLimit.js';
+import { validate } from '../middleware/validate.js';
+import {
+  appointmentStatusValidation,
+  appointmentValidation,
+} from '../validators/appointmentValidators.js';
 
 const router = express.Router();
 
-// Public routes
-router.post('/', createAppointment);
-
-// Protected routes
-router.get('/', protect, authorize('admin', 'doctor'), getAppointments);
-router.get('/stats/overview', protect, authorize('admin'), getAppointmentStats);
-router.get('/:id', protect, authorize('admin', 'doctor'), getAppointment);
-router.patch('/:id/status', protect, authorize('admin'), updateAppointmentStatus);
-router.put('/:id', protect, authorize('admin'), updateAppointment);
-router.delete('/:id', protect, authorize('admin'), deleteAppointment);
+router.post('/', bookingRateLimiter, appointmentValidation, validate, createAppointment);
+router.get('/', protect, authorize(USER_ROLES.HOSPITAL_ADMIN, USER_ROLES.DOCTOR), getAppointments);
+router.get('/stats/overview', protect, authorize(USER_ROLES.HOSPITAL_ADMIN, USER_ROLES.DOCTOR), getAppointmentStats);
+router.get('/:id', protect, authorize(USER_ROLES.HOSPITAL_ADMIN, USER_ROLES.DOCTOR), getAppointment);
+router.patch(
+  '/:id/status',
+  protect,
+  authorize(USER_ROLES.HOSPITAL_ADMIN, USER_ROLES.DOCTOR),
+  appointmentStatusValidation,
+  validate,
+  updateAppointmentStatus
+);
 
 export default router;
