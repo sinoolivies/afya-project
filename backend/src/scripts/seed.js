@@ -11,14 +11,14 @@ import { USER_ROLES } from '../constants/roles.js';
 
 dotenv.config();
 
-const DEFAULT_PASSWORD = process.env.DEFAULT_ACCOUNT_PASSWORD || 'pass@123';
+const DEFAULT_PASSWORD = process.env.DEFAULT_ACCOUNT_PASSWORD || 'change-me-before-using';
 
 const hospitals = [
   {
     name: 'King Faisal Hospital Kigali',
     slug: 'king-faisal-hospital-kigali',
     type: 'hospital',
-    contact: { email: 'huguetteuwase84@gmail.com', phone: '+250788000001' },
+    contact: { email: 'admin1@example.com', phone: '+250788000001' },
     address: {
       street: 'KG 544 St',
       city: 'Kigali',
@@ -33,7 +33,7 @@ const hospitals = [
     name: 'CHUK',
     slug: 'chuk',
     type: 'hospital',
-    contact: { email: 'shamiguevara1@gmail.com', phone: '+250788000002' },
+    contact: { email: 'admin2@example.com', phone: '+250788000002' },
     address: {
       street: 'KN 4 Ave',
       city: 'Kigali',
@@ -64,8 +64,8 @@ const seed = async () => {
 
   const admin = await User.create({
     hospitalId: kfhk._id,
-    fullName: 'Huguette Uwase',
-    email: 'huguetteuwase84@gmail.com',
+    fullName: 'Hospital Admin One',
+    email: 'admin1@example.com',
     password: DEFAULT_PASSWORD,
     phone: '+250788123000',
     role: USER_ROLES.HOSPITAL_ADMIN,
@@ -73,8 +73,8 @@ const seed = async () => {
 
   const admin2 = await User.create({
     hospitalId: chuk._id,
-    fullName: 'Shami Guevara',
-    email: 'shamiguevara1@gmail.com',
+    fullName: 'Hospital Admin Two',
+    email: 'admin2@example.com',
     password: DEFAULT_PASSWORD,
     phone: '+250788123005',
     role: USER_ROLES.HOSPITAL_ADMIN,
@@ -82,8 +82,8 @@ const seed = async () => {
 
   const doctorUser1 = await User.create({
     hospitalId: kfhk._id,
-    fullName: 'Dr. Ruth Marine',
-    email: 'ruthmarine7@gmail.com',
+    fullName: 'Dr. Demo One',
+    email: 'doctor1@example.com',
     password: DEFAULT_PASSWORD,
     phone: '+250788123001',
     role: USER_ROLES.DOCTOR,
@@ -91,8 +91,8 @@ const seed = async () => {
 
   const doctorUser2 = await User.create({
     hospitalId: chuk._id,
-    fullName: 'Dr. Christella Gahongayire',
-    email: 'christellagahongayire4@gmail.com',
+    fullName: 'Dr. Demo Two',
+    email: 'doctor2@example.com',
     password: DEFAULT_PASSWORD,
     phone: '+250788123002',
     role: USER_ROLES.DOCTOR,
@@ -100,8 +100,8 @@ const seed = async () => {
 
   const doctorUser3 = await User.create({
     hospitalId: chuk._id,
-    fullName: 'Dr. Ntwari Hertier',
-    email: 'ntwarihertier@gmail.com',
+    fullName: 'Dr. Demo Three',
+    email: 'doctor3@example.com',
     password: DEFAULT_PASSWORD,
     phone: '+250788123003',
     role: USER_ROLES.DOCTOR,

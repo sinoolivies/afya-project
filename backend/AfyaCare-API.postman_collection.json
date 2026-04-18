@@ -65,7 +65,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"huguetteuwase84@gmail.com\",\n  \"password\": \"pass@123\"\n}"
+          "raw": "{\n  \"email\": \"admin1@example.com\",\n  \"password\": \"replace-with-seeded-password\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/login",

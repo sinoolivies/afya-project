@@ -34,7 +34,7 @@ export const createDoctor = asyncHandler(async (req, res) => {
     hospitalId,
     fullName: req.body.fullName,
     email: req.body.email,
-    password: req.body.password || process.env.DEFAULT_ACCOUNT_PASSWORD || 'pass@123',
+    password: req.body.password || process.env.DEFAULT_ACCOUNT_PASSWORD || 'change-me-before-using',
     phone: req.body.phone,
     role: USER_ROLES.DOCTOR,
   });

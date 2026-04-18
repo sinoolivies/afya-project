@@ -33,7 +33,7 @@ export default function DoctorsPanel({ user }) {
     email: "",
     phone: "",
     specialty: "",
-    password: "pass@123",
+    password: "",
   });
   const [availabilityForm, setAvailabilityForm] = useState({
     doctorId: "",
@@ -385,7 +385,7 @@ export default function DoctorsPanel({ user }) {
                     email: "",
                     phone: "",
                     specialty: "",
-                    password: "pass@123",
+                    password: "",
                   });
                   setIsCreateOpen(false);
                   await loadDoctors();

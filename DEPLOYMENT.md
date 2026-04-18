@@ -6,6 +6,7 @@ If someone is setting this project up for the first time, start with:
 
 - `README.md` for install and local setup
 - this file for deployment values and hosting steps
+- `VERCEL_FRONTEND_DEPLOYMENT.md` for frontend-only hosting on Vercel
 
 ## Simple local start commands
 
@@ -59,12 +60,12 @@ If `.venv` exists, `npm run start:ai` and `npm run dev:all` will use it automati
 
 ## MongoDB Atlas production URI
 
-Your password contains `@`, so it must be URL-encoded as `%40`.
+Use your MongoDB Atlas production connection string.
 
-Use this production connection string:
+If your password contains special characters like `@`, URL-encode them first.
 
 ```env
-MONGODB_URI=mongodb+srv://sino:sino%40123dx@cluster0.yylu84x.mongodb.net/afyacare?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://db_user:db_password@cluster.mongodb.net/afyacare?retryWrites=true&w=majority&appName=Cluster0
 ```
 
 ## Render backend env
@@ -74,19 +75,19 @@ Copy and paste this into the Render backend service:
 ```env
 NODE_ENV=production
 PORT=10000
-MONGODB_URI=mongodb+srv://sino:sino%40123dx@cluster0.yylu84x.mongodb.net/afyacare?retryWrites=true&w=majority&appName=Cluster0
-JWT_SECRET=afyacare-super-secure-jwt-secret-2026
+MONGODB_URI=mongodb+srv://db_user:db_password@cluster.mongodb.net/afyacare?retryWrites=true&w=majority&appName=Cluster0
+JWT_SECRET=replace-with-a-long-random-jwt-secret
 JWT_EXPIRE=7d
-CORS_ORIGIN=https://africare.vercel.app
-INTERNAL_API_KEY=afyacare-internal-api-key-2026
+CORS_ORIGIN=https://your-frontend-domain.vercel.app
+INTERNAL_API_KEY=replace-with-your-internal-service-key
 EMAIL_PROVIDER=gmail
-SMTP_USER=dushimimanaorivier184@gmail.com
-SMTP_PASS=osio dkfb bjcp xfer
-EMAIL_FROM=dushimimanaorivier184@gmail.com
-GOOGLE_API_KEY=AIzaSyBNhFaRz8e9NAAcRv7HwZhLDwHmtWqp4Do
+SMTP_USER=your-gmail-address@example.com
+SMTP_PASS=your-app-password
+EMAIL_FROM=your-gmail-address@example.com
+GOOGLE_API_KEY=your-google-api-key
 GEMINI_MODEL=gemini-2.0-flash
-TEST_PATIENT_EMAIL=sinoolivies@gmail.com
-DEFAULT_ACCOUNT_PASSWORD=pass@123
+TEST_PATIENT_EMAIL=test-patient@example.com
+DEFAULT_ACCOUNT_PASSWORD=replace-with-default-seed-password
 ```
 
 Also saved in:
@@ -101,10 +102,10 @@ Copy and paste this into the Render AI service:
 APP_ENV=production
 APP_HOST=0.0.0.0
 APP_PORT=10000
-GOOGLE_API_KEY=AIzaSyBNhFaRz8e9NAAcRv7HwZhLDwHmtWqp4Do
+GOOGLE_API_KEY=your-google-api-key
 GEMINI_MODEL=gemini-2.0-flash
-NODE_API_BASE_URL=https://afyacare-backend.onrender.com/api/v1
-INTERNAL_API_KEY=afyacare-internal-api-key-2026
+NODE_API_BASE_URL=https://your-backend-service.onrender.com/api/v1
+INTERNAL_API_KEY=replace-with-your-internal-service-key
 REQUEST_TIMEOUT_SECONDS=30
 ```
 
@@ -119,8 +120,8 @@ Also saved in:
 Set this on Vercel:
 
 ```env
-VITE_AI_SERVICE_URL=https://afyacare-ai-service.onrender.com
-VITE_NODE_API_URL=https://afyacare-backend.onrender.com/api/v1
+VITE_AI_SERVICE_URL=https://your-ai-service.onrender.com
+VITE_NODE_API_URL=https://your-backend-service.onrender.com/api/v1
 ```
 
 Replace the URLs with your actual Render service URLs if they differ.

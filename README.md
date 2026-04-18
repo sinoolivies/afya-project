@@ -134,3 +134,7 @@ npm run dev:all
 For Render, Vercel, and MongoDB Atlas setup, read:
 
 [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+For a frontend-only Vercel guide, read:
+
+[VERCEL_FRONTEND_DEPLOYMENT.md](./VERCEL_FRONTEND_DEPLOYMENT.md)

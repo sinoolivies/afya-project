@@ -1,21 +1,23 @@
 # AfyaCare Default Credentials
 
-All seeded staff accounts use the same password:
+This file documents demo credentials only.
 
-`pass@123`
+Set the real seeded password with:
 
-Seeded hospital admins:
+`DEFAULT_ACCOUNT_PASSWORD` in your local `backend/.env`
 
-- `huguetteuwase84@gmail.com`
-- `shamiguevara1@gmail.com`
+Demo seeded hospital admins:
 
-Seeded doctors:
+- `admin1@example.com`
+- `admin2@example.com`
 
-- `ruthmarine7@gmail.com`
-- `christellagahongayire4@gmail.com`
-- `ntwarihertier@gmail.com`
+Demo seeded doctors:
+
+- `doctor1@example.com`
+- `doctor2@example.com`
+- `doctor3@example.com`
 
 Notes:
 
-- The user-provided address `ruth marine7@gmail.com` was normalized to `ruthmarine7@gmail.com` because spaces are not valid in email addresses.
-- Test patient notification email: `sinoolivies@gmail.com`
+- These values are safe examples for documentation.
+- Real local credentials should stay only in ignored `.env` files.

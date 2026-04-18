@@ -77,8 +77,8 @@ export default function Dashboard() {
 
 function StaffLogin({ onSignedIn, error }) {
   const [form, setForm] = useState({
-    email: "huguetteuwase84@gmail.com",
-    password: "pass@123",
+    email: "",
+    password: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localError, setLocalError] = useState(error || "");
@@ -114,6 +114,9 @@ function StaffLogin({ onSignedIn, error }) {
         </p>
         <p className="mt-2 text-sm text-slate-500">
           New hospital? <Link to="/register-hospital" className="font-medium text-emerald-600 hover:text-emerald-700">Create an account here</Link>
+        </p>
+        <p className="mt-2 text-xs text-slate-400">
+          Enter your own staff credentials from registration or your local seed data.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
